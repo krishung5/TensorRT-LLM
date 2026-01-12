@@ -1598,6 +1598,13 @@ public:
         std::vector<LlmRequest::RequestIdType> const& requestIds, SizeType32 windowSize) const
         = 0;
 
+    //! \brief Get the block priorities of a request [per beam] **for a given window size block manager**
+    //! \details Returns the retention priority for each block. Priorities can be used by connectors
+    //!          to filter which blocks should be offloaded (e.g., only blocks with priority >= threshold).
+    [[nodiscard]] virtual std::vector<std::vector<executor::RetentionPriority>> getBlockPriorities(
+        LlmRequest::RequestIdType requestId, SizeType32 windowSize) const
+        = 0;
+
     /// @brief Get the last block id (beam 0) for a given sequence and window size
     [[nodiscard]] virtual std::optional<KVCacheBlock::IdType> getLastBlockId(LlmRequest::RequestIdType requestId) const
         = 0;
@@ -1979,6 +1986,9 @@ public:
 
     std::vector<std::vector<std::vector<SizeType32>>> getBatchCacheBlockIds(
         std::vector<LlmRequest::RequestIdType> const& requestIds, SizeType32 windowSize) const override;
+
+    std::vector<std::vector<executor::RetentionPriority>> getBlockPriorities(
+        LlmRequest::RequestIdType requestId, SizeType32 windowSize) const override;
 
     runtime::ITensor::SharedPtr getUniquePrimaryPool() const override;
     runtime::ITensor::SharedPtr getPrimaryPool(SizeType32 layer_idx) const override;

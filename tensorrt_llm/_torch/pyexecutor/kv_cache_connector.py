@@ -68,6 +68,9 @@ class RequestData:
     computed_position: int
     # The number of scheduled tokens for the upcoming forward pass.
     num_scheduled_tokens: int
+    # The retention priorities for newly allocated blocks (aligned with new_block_ids).
+    # Priorities can be used by connectors to filter blocks for offloading (e.g., only offload blocks with priority >= threshold).
+    new_block_priorities: List[int] = field(default_factory=list)
 
 
 # A class to store some basic data regarding all inflight requests.
@@ -291,17 +294,27 @@ class KvCacheConnectorSchedulerOutputRequest:
     def __init__(self):
         self.block_ids = []
         self.tokens = []
+        self.block_priorities = []
 
     def update_and_build_data(self, req: LlmRequest,
                               kv_cache_manager: "KVCacheManager"):
         block_ids = kv_cache_manager.get_cache_indices(req)
         tokens = req.get_tokens(0)
+        
+        # Get block priorities if available
+        try:
+            block_priorities = kv_cache_manager.get_block_priorities(req)
+        except (AttributeError, NotImplementedError):
+            # Fallback if get_block_priorities is not implemented
+            block_priorities = [0] * len(block_ids)
 
         new_block_ids = block_ids[len(self.block_ids):]
         new_tokens = tokens[len(self.tokens):]
+        new_block_priorities = block_priorities[len(self.block_priorities):]
 
         self.block_ids.extend(new_block_ids)
         self.tokens.extend(new_tokens)
+        self.block_priorities.extend(new_block_priorities)
 
         if req.state in (LlmRequestState.CONTEXT_INIT,
                          LlmRequestState.DISAGG_GENERATION_TRANS_IN_PROGRESS):
@@ -313,7 +326,8 @@ class KvCacheConnectorSchedulerOutputRequest:
             num_scheduled_tokens = 1  # Specdec with draft tokens is not supported yet.
 
         return RequestData(req.request_id, new_tokens, new_block_ids,
-                           computed_position, num_scheduled_tokens)
+                           computed_position, num_scheduled_tokens,
+                           new_block_priorities)
 
 
 class KvCacheConnectorSchedulerOutputManager:

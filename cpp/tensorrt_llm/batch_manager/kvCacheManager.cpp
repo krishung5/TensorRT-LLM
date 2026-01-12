@@ -2905,6 +2905,28 @@ std::vector<std::vector<std::vector<SizeType32>>> KVCacheManager::getBatchCacheB
     return result;
 }
 
+std::vector<std::vector<executor::RetentionPriority>> KVCacheManager::getBlockPriorities(
+    RequestIdType requestId, SizeType32 windowSize) const
+{
+    auto const& sequence = getSequence(requestId);
+    auto const& cacheBlockIds = sequence.getCacheBlockIds(windowSize);
+    std::vector<std::vector<executor::RetentionPriority>> result{};
+    result.reserve(cacheBlockIds.size());
+
+    for (auto const& beamBlockIds : cacheBlockIds)
+    {
+        std::vector<executor::RetentionPriority> beamPriorities{};
+        beamPriorities.reserve(beamBlockIds.size());
+        for (auto const& blockId : beamBlockIds)
+        {
+            auto const& block = mBlockManager.getBlockById(blockId, windowSize);
+            beamPriorities.push_back(block->getPriority());
+        }
+        result.push_back(std::move(beamPriorities));
+    }
+    return result;
+}
+
 std::optional<KVCacheBlock::IdType> KVCacheManager::getLastBlockId(LlmRequest::RequestIdType requestId) const
 {
     auto const& seq = getSequence(requestId);

@@ -851,6 +851,28 @@ class KVCacheManager(BaseResourceManager):
         assert len(result) == 1
         return result[0]
 
+    def get_block_priorities(self,
+                             request: LlmRequest,
+                             window_size: Optional[int] = None) -> List[int]:
+        """Get the retention priorities for each KV cache block of a request.
+        
+        Args:
+            request: The LLM request to get block priorities for
+            window_size: The attention window size (optional for non-VSWA)
+            
+        Returns:
+            List of retention priority values for each block (beam 0)
+        """
+        if window_size is None:
+            if len(self.max_attention_window_vec) > 1:
+                raise ValueError("window_size must be provided for VSWA")
+            window_size = self.max_attention_window_vec[0]
+
+        result = self.impl.get_block_priorities(request.py_request_id,
+                                                window_size)
+        assert len(result) == 1
+        return result[0]
+
     def unpin_blocks_by_id(self, kv_cache_block_id: int):
         self.impl.unpin_blocks_by_id(kv_cache_block_id)
 

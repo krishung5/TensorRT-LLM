@@ -67,7 +67,7 @@ std::optional<tensorrt_llm::runtime::ITensor::UniquePtr> from_torch(std::optiona
 class PyKvCacheManager : public tbk::BaseKVCacheManager
 {
 public:
-    NB_TRAMPOLINE(tbk::BaseKVCacheManager, 30);
+    NB_TRAMPOLINE(tbk::BaseKVCacheManager, 31);
 
     // using BaseKVCacheManager::BaseKVCacheManager; // Inherit constructors
     void allocatePools(bool useUvm = false) override
@@ -197,6 +197,12 @@ public:
         std::vector<tb::LlmRequest::RequestIdType> const& requestIds, SizeType32 windowSize) const override
     {
         NB_OVERRIDE_PURE(getBatchCacheBlockIds, requestIds, windowSize);
+    }
+
+    std::vector<std::vector<tensorrt_llm::executor::RetentionPriority>> getBlockPriorities(
+        tb::LlmRequest::RequestIdType requestId, SizeType32 windowSize) const override
+    {
+        NB_OVERRIDE_PURE(getBlockPriorities, requestId, windowSize);
     }
 
     SizeType32 getUsedNumBlocks() const override
@@ -484,6 +490,7 @@ void tb::kv_cache_manager::KVCacheManagerBindings::initBindings(nb::module_& m)
         .def("get_cache_block_ids", &BaseKVCacheManager::getCacheBlockIds, nb::call_guard<nb::gil_scoped_release>())
         .def("get_batch_cache_block_ids", &BaseKVCacheManager::getBatchCacheBlockIds,
             nb::call_guard<nb::gil_scoped_release>())
+        .def("get_block_priorities", &BaseKVCacheManager::getBlockPriorities, nb::call_guard<nb::gil_scoped_release>())
         .def("flush_iteration_events", &BaseKVCacheManager::flushIterationEvents,
             nb::call_guard<nb::gil_scoped_release>())
         .def("sync_transfer_manager_with_buffer_manager", &BaseKVCacheManager::syncTransferManagerWithBufferManager,

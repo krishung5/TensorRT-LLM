@@ -373,7 +373,10 @@ def test_media_capability_accepts_a_registered_non_base_processor(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("prompt", ["", "<|startoftranscript|><|fr|><|translate|><|notimestamps|>"])
-async def test_audio_text_prompt_survives_preparation_without_placeholders(monkeypatch, prompt):
+@pytest.mark.parametrize("context_only", [False, True])
+async def test_audio_text_prompt_survives_preparation_without_placeholders(
+    monkeypatch, prompt, context_only
+):
     import soundfile
 
     config = _ImageConfig()
@@ -405,6 +408,8 @@ async def test_audio_text_prompt_survives_preparation_without_placeholders(monke
             )
         ],
     )
+    if context_only:
+        request.extra.update({"request_type": "context_only"})
     responses = [response async for response in inference.Generate(request, FakeServicerContext())]
     assert responses[-1].HasField("finished")
     inputs = llm.generate_kwargs["inputs"]

@@ -418,13 +418,16 @@ class OpenEngineInferenceServicer(openengine_pb2_grpc.InferenceServicer):
                         )
                         if reused is not None:
                             return reused
+                    supports_token_id_mm_expansion = getattr(
+                        self._llm.input_processor, "supports_token_id_mm_expansion", False
+                    )
                     validated_ids = await lease.run(
                         self._input_executor,
                         partial(
                             _validate_media_placeholders,
                             add_special_tokens=(
                                 sampling_params.add_special_tokens
-                                and self._llm.input_processor.supports_token_id_mm_expansion
+                                and supports_token_id_mm_expansion
                             ),
                         ),
                         prepared_input,
@@ -435,18 +438,22 @@ class OpenEngineInferenceServicer(openengine_pb2_grpc.InferenceServicer):
                     if (
                         validated_ids is not None
                         and isinstance(prepared_input.inputs, str)
-                        and self._llm.input_processor.supports_token_id_mm_expansion
+                        and supports_token_id_mm_expansion
                     ):
                         inputs.pop("prompt")
                         inputs["prompt_token_ids"] = validated_ids
                     work = local_request.preprocessing = _PreprocessingWork()
 
                     def preprocess() -> Any:
+                        capture_decode_state = getattr(
+                            self._llm.input_processor, "capture_decode_state", None
+                        )
                         if (
                             disaggregated_params is not None
                             and disaggregated_params.request_type == "context_only"
+                            and callable(capture_decode_state)
                         ):
-                            with self._llm.input_processor.capture_decode_state() as capture:
+                            with capture_decode_state() as capture:
                                 result = self._llm.preprocess(
                                     inputs, sampling_params, disaggregated_params
                                 )
